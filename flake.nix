@@ -18,10 +18,29 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs, nix-bundle, nix-appimage, nix-utils }: let
+  inputs.nix-bundle-apptores = {
+    url = "github:DigitalBrewStudios/nix-bundle-appstores";
+    inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  outputs =
+    {
+      self,
+      nixpkgs,
+      nix-bundle,
+      nix-appimage,
+      nix-utils,
+      nix-bundle-apptores,
+    }:
+    let
       inherit (nixpkgs) lib;
       # System types to support.
-      supportedSystems = [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
+      supportedSystems = [
+        "x86_64-linux"
+        "x86_64-darwin"
+        "aarch64-linux"
+        "aarch64-darwin"
+      ];
 
       # Helper function to generate an attrset '{ x86_64-linux = f "x86_64-linux"; ... }'.
       forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
@@ -43,39 +62,66 @@
           )
         );
 
-      protect = drv: if drv?outPath then drv else throw "provided installable is not a derivation and not coercible to an outPath";
-  in {
-    bundlers =
-      (forAllSystems (system: rec {
+      protect =
+        drv:
+        if drv ? outPath then
+          drv
+        else
+          throw "provided installable is not a derivation and not coercible to an outPath";
+    in
+    {
+      bundlers = (
+        forAllSystems (system: rec {
 
-      default = toArx;
-      toArx = nix-bundle.bundlers.${system}.nix-bundle;
+          default = toArx;
+          toArx = nix-bundle.bundlers.${system}.nix-bundle;
 
-      toRPM = drv: nix-utils.bundlers.rpm {inherit system; program=getExe drv;};
+          toRPM =
+            drv:
+            nix-utils.bundlers.rpm {
+              inherit system;
+              program = getExe drv;
+            };
 
-      toDEB = drv: nix-utils.bundlers.deb {inherit system; program=getExe drv;};
+          toDEB =
+            drv:
+            nix-utils.bundlers.deb {
+              inherit system;
+              program = getExe drv;
+            };
 
-      toDockerImage = {...}@drv:
-        (nixpkgs.legacyPackages.${system}.dockerTools.buildLayeredImage {
-          name = drv.name or drv.pname or "image";
-          tag = "latest";
-          contents = if drv?outPath then drv else throw "provided installable is not a derivation and not coercible to an outPath";
-      });
+          toDockerImage =
+            { ... }@drv:
+            (nixpkgs.legacyPackages.${system}.dockerTools.buildLayeredImage {
+              name = drv.name or drv.pname or "image";
+              tag = "latest";
+              contents =
+                if drv ? outPath then
+                  drv
+                else
+                  throw "provided installable is not a derivation and not coercible to an outPath";
+            });
 
-      toBuildDerivation = drv:
-        (import ./report/default.nix {
-          drv = protect drv;
-          pkgs = nixpkgsFor.${system};}).buildtimeDerivations;
+          toBuildDerivation =
+            drv:
+            (import ./report/default.nix {
+              drv = protect drv;
+              pkgs = nixpkgsFor.${system};
+            }).buildtimeDerivations;
 
-      toReport = drv:
-        (import ./report/default.nix {
-          drv = protect drv;
-          pkgs = nixpkgsFor.${system};}).runtimeReport;
+          toReport =
+            drv:
+            (import ./report/default.nix {
+              drv = protect drv;
+              pkgs = nixpkgsFor.${system};
+            }).runtimeReport;
 
-      toAppImage = nix-appimage.bundlers.${system}.default;
+          toAppImage = nix-appimage.bundlers.${system}.default;
 
-      identity = drv: drv;
-    }
-    ));
-  };
+          toFlatpak = nix-appstores.bundlers.${system}.flatpak;
+
+          identity = drv: drv;
+        })
+      );
+    };
 }
