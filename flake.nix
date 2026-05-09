@@ -74,6 +74,19 @@
 
       toAppImage = nix-appimage.bundlers.${system}.default;
 
+			toAPK = {...}@drv:
+			(nixpkgs.legacyPackages.${system}.androidenv.buildApp {
+				name = drv.name or drv.pname or "AndroidApp";
+				src = (protect drv).src;
+			});
+
+			toIPA = {...}@drv:
+			(nixpkgs.legacyPackages.${system}.xcodeenv.buildApp {
+				name = drv.name or drv.pname or "AndroidApp";
+				src = (protect drv).src;
+				generateIPA = true; 
+			});
+
       identity = drv: drv;
     }
     ));
