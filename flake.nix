@@ -50,6 +50,7 @@
 
       default = toArx;
       toArx = nix-bundle.bundlers.${system}.nix-bundle;
+			pkgsCross = drv: nixpkgs.legacyPackages.${system}.pkgsCross
 
       toRPM = drv: nix-utils.bundlers.rpm {inherit system; program=getExe drv;};
 
