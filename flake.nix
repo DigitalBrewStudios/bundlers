@@ -74,6 +74,21 @@
 
       toAppImage = nix-appimage.bundlers.${system}.default;
 
+      toMusl = drv: let
+          inherit (nixpkgs.legacyPackages.${system}) stdenv;
+          muslFor = if stdenv.hostPlatform.isLinux && (stdenv.buildPlatform.is64bit || stdenv.buildPlatform.isx86) then
+            import nixpkgs { 
+              inherit system; 
+              crossSystem.config = lib.systems.parse.tripleFromSystem ( 
+                lib.systems.parse.mkMuslSystem stdenv.hostPlatform.parsed
+              );  
+            }
+          else 
+            throw "Musl libc only supports 64-bit Linux systems, and i686-linux.";
+          muslDrv = drv.override muslFor; 
+      in 
+           self.bundlers.${system}.toArx muslDrv; 
+
       identity = drv: drv;
     }
     ));
